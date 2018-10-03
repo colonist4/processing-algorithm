@@ -1,7 +1,17 @@
 class Vertex{
   PVector position, velocity;
+  boolean isPseudo = false;
   Vertex(float x, float y){
     position = new PVector(x, y);
+  }
+  Vertex(PVector p){
+    position = p.copy();
+  }
+  void update(){
+    position.add(velocity);
+    
+    if(position.x > width || position.x < 0) velocity.x *= -1;
+    if(position.y > height || position.y < 0) velocity.y *= -1;
   }
 }
 
@@ -11,7 +21,8 @@ class Edge{
   Vertex vertices[] = new Vertex[2];
   PVector e;
   Triangle left, right;
-  
+  boolean isDeleted = false;
+  boolean isPseudo = false;
 }
 
 class Triangle{
@@ -27,7 +38,20 @@ class Triangle{
       edges[i].vertices[1] = v2;
       edges[i].left = this;
       edges[i].e = PVector.sub(v2.position, v1.position);
+      
+      if(v1.isPseudo || v2.isPseudo)
+        edges[i].isPseudo = true;
     }
+  }
+  
+  void setPseudo(){
+    for(int i=0; i<3; i++){
+      vertices[i].isPseudo = true;
+    }
+  }
+  
+  void removeEdges(){
+    edges[0].isDeleted = edges[1].isDeleted = edges[2].isDeleted = true; 
   }
 }
 

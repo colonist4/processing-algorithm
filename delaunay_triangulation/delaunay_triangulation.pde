@@ -1,6 +1,9 @@
 import java.util.LinkedList;
 import java.util.Stack;
 
+final static int INF = 20000;
+final static int numVertex = 50;
+
 ArrayList<Triangle> triangles;
 ArrayList<Vertex> vertices;
 Stack<Edge> edgeStack;
@@ -8,50 +11,79 @@ Stack<Edge> edgeStack;
 Triangle pseudoTriangle;
 
 void setup(){
-  size(500, 500);
-  frameRate(1);
+  size(1000, 800);
+  frameRate(60);
   
   triangles = new ArrayList<Triangle>();
   vertices = new ArrayList<Vertex>();
   edgeStack = new Stack<Edge>();
   
   pseudoTriangle = new Triangle();
-  pseudoTriangle.vertices[0] = new Vertex(250, -500);
-  pseudoTriangle.vertices[1] = new Vertex(-500, 1000);
-  pseudoTriangle.vertices[2] = new Vertex(1000, 1000);
-  
+  pseudoTriangle.vertices[0] = new Vertex(width/2, -INF);
+  pseudoTriangle.vertices[1] = new Vertex(-INF, INF);
+  pseudoTriangle.vertices[2] = new Vertex(INF, INF);
+  //pseudoTriangle.vertices[0] = new Vertex(250, 0);
+  //pseudoTriangle.vertices[1] = new Vertex(0, 500);
+  //pseudoTriangle.vertices[2] = new Vertex(500, 500);
+  pseudoTriangle.setPseudo();
   pseudoTriangle.createEdges();
   
-  vertices.add(new Vertex(150, 250));
-  vertices.add(new Vertex(250, 250));
-  vertices.add(new Vertex(350, 250));
+  //vertices.add(new Vertex(150, 250));
+  //vertices.add(new Vertex(250, 250));
+  //vertices.add(new Vertex(350, 250));
   
-  vertices.add(new Vertex(350, 400));
-  
-  //findDT();
-  
-  //println(triangles.size());
-  triangles.clear();
-  triangles.add(pseudoTriangle);
+  //vertices.add(new Vertex(350, 400));
+  //vertices.add(new Vertex(250, 400));
+  //vertices.add(new Vertex(150, 400));
+  for(int i=0; i<numVertex; i++){
+    Vertex v = new Vertex(random(0, width), random(0, height));
+    v.velocity = PVector.random2D().mult(random(1, 10));
+    vertices.add(v);
+  }
 }
 
-void draw(){
-  if(frameCount == vertices.size()) stop();
+void draw(){ //<>//
+  //background(0);
+  fill(0, 100);
+  rect(0, 0, width, height);
   
-  Vertex s = vertices.get(frameCount-1);
-  Triangle t = findIncludeTriangle(s);
-  if(t != null){
-    makeThreeTriangle(s, t);
-    while(!edgeStack.isEmpty()){ //<>//
-      Edge e = edgeStack.pop();
-      lawsonFlip(e);
-    }  
-  }
+  findDT();
+  drawVertices();
+  drawEdgesExceptPseudo();
+  for(Vertex v: vertices)
+    v.update();
+  
+  textSize(16);
+  textAlign(LEFT, TOP);
+  fill(255, 0, 0);
+  text(frameRate, 10, 10);
+}
 
-  background(255);
+void drawAllEdges(){
   for(Triangle t_: triangles){
     for(int i=0; i<3; i++){
       Edge e = t_.edges[i];
+      line(e.vertices[0].position.x, e.vertices[0].position.y, e.vertices[1].position.x, e.vertices[1].position.y);
+    }
+  }
+}
+
+void drawVertices(){
+  stroke(255);
+  fill(255);
+  for(Vertex v : vertices){
+    if(!v.isPseudo){
+      ellipse(v.position.x, v.position.y, 4, 4);
+    }
+  }
+}
+
+void drawEdgesExceptPseudo(){
+  stroke(255, 50);
+  for(Triangle t_: triangles){
+    for(int i=0; i<3; i++){
+      Edge e = t_.edges[i];
+      if(e.isPseudo) continue;
       line(e.vertices[0].position.x, e.vertices[0].position.y, e.vertices[1].position.x, e.vertices[1].position.y);
     }
   }
@@ -76,7 +108,7 @@ Triangle findIncludeTriangle(Vertex s){
 float CCW(PVector v1, PVector v2){
   return v1.x*v2.y - v1.y*v2.x;
 }
-
+ //<>//
 void makeThreeTriangle(Vertex s, Triangle t){
   Triangle newTs[] = new Triangle[3];
   
@@ -101,12 +133,18 @@ void makeThreeTriangle(Vertex s, Triangle t){
     newTs[i].edges[0].right = t.edges[i].right;
     newTs[i].edges[1].right = newTs[(i+1)%3];
     newTs[i].edges[2].right = newTs[(i+2)%3];
+    
+    setRightTriangle(newTs[i].edges[0]);
   }
+  
+  t.removeEdges();
   
   triangles.remove(t);
 }
 
 boolean lawsonFlip(Edge e){
+  if(e.isDeleted) return false;
+  
   Triangle left = e.left;
   Triangle right = e.right;
   
@@ -126,7 +164,7 @@ boolean lawsonFlip(Edge e){
         el1.normalize();
         el2.normalize();
         
-        cosA = el1.dot(el2);
+        cosA = -el1.dot(el2);
         
         break;
       }
@@ -142,7 +180,7 @@ boolean lawsonFlip(Edge e){
         er1.normalize();
         er2.normalize();
         
-        cosB = er1.dot(er2);
+        cosB = -er1.dot(er2);
         
         break;
       }
@@ -153,7 +191,7 @@ boolean lawsonFlip(Edge e){
     return false;
   
   // 내부
-  // Flip  
+  // Flip
   Triangle tA = new Triangle();
   tA.vertices[0] = left.vertices[lIndex];
   tA.vertices[1] = right.vertices[rIndex];
@@ -175,8 +213,17 @@ boolean lawsonFlip(Edge e){
   tA.edges[2].right = left.edges[(lIndex+2)%3].right;
   tB.edges[2].right = right.edges[(rIndex+2)%3].right;
   
+  setRightTriangle(tA.edges[1]);
+  setRightTriangle(tB.edges[1]);
+  
+  setRightTriangle(tA.edges[2]);
+  setRightTriangle(tB.edges[2]);
+  
   edgeStack.push(right.edges[rIndex]);
   edgeStack.push(right.edges[(rIndex+2)%3]);
+  
+  left.removeEdges();
+  right.removeEdges();
   
   triangles.remove(left);
   triangles.remove(right);
@@ -187,8 +234,21 @@ boolean lawsonFlip(Edge e){
   return true;  
 }
 
+void setRightTriangle(Edge e){
+  Triangle left = e.left;
+  Triangle right = e.right;
+  if(right == null) return;
+  
+  for(int i=0; i<3; i++){
+    if(right.edges[i].e.x == -e.e.x &&
+      right.edges[i].e.y == -e.e.y){
+      right.edges[i].right = left;
+    }
+  }
+}
+
 void findDT(){
-  triangles.clear(); //<>//
+  triangles.clear();
   triangles.add(pseudoTriangle);
   
   for(Vertex s : vertices){
@@ -197,7 +257,7 @@ void findDT(){
       continue;
       
     makeThreeTriangle(s, t);
-    while(!edgeStack.isEmpty()){
+    while(!edgeStack.isEmpty()){ //<>//
       Edge e = edgeStack.pop();
       lawsonFlip(e);
     }
